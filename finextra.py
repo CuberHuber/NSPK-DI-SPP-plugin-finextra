@@ -4,8 +4,8 @@
 1/2 документ плагина
 """
 import logging
-import os
 import time
+import warnings
 from datetime import timedelta, datetime
 
 import dateparser
@@ -13,7 +13,6 @@ from selenium.common import TimeoutException
 from selenium.webdriver.common.by import By
 
 from src.spp.types import SPP_document
-import warnings
 
 # Ignore dateparser warnings regarding pytz
 # https://github.com/scrapinghub/dateparser/issues/1013#issuecomment-956302959
@@ -39,7 +38,7 @@ class FINEXTRA:
     HOST = "https://www.finextra.com"
     _content_document: list[SPP_document]
 
-    def __init__(self, driver, interval: timedelta, *args, **kwargs):
+    def __init__(self, driver, interval: timedelta, max_count_documents: int = None, last_document: SPP_document = None, *args, **kwargs):
         """
         Конструктор класса парсера
 
@@ -51,6 +50,8 @@ class FINEXTRA:
 
         self.driver = driver
         self.interval = interval
+        self._max_count_documents = max_count_documents
+        self._last_document = last_document
 
         # Логер должен подключаться так. Вся настройка лежит на платформе
         self.logger = logging.getLogger()
@@ -66,8 +67,12 @@ class FINEXTRA:
         :rtype:
         """
         self.logger.debug("Parse process start")
-        self._parse()
-        self.logger.debug("Parse process finished")
+        try:
+            self._parse()
+        except Exception as e:
+            self.logger.debug(f'Parsing stopped with error: {e}')
+        else:
+            self.logger.debug("Parse process finished")
         return self._content_document
 
     def _parse(self):
@@ -187,8 +192,15 @@ class FINEXTRA:
                                                                                                 './following-sibling::h4').text.split()[
                             1].split('(', 1)[1].split(')')[0]
 
+                    except:
+                        self.logger.exception(f'Ошибка при обработке: {article_url}')
+                        self.logger.info('Закрытие вкладки и переход к след. материалу...')
+                        self.driver.close()
+                        self.driver.switch_to.window(self.driver.window_handles[0])
+                        continue
+                    else:
                         document = SPP_document(
-                            doc_id=None,
+                            id=None,
                             title=title,
                             abstract=abstract,
                             text=text,
@@ -210,15 +222,7 @@ class FINEXTRA:
                             pub_date=date,
                             load_date=None
                         )
-                        self._find_document_text_for_logger(document)
-                        self._content_document.append(document)
-
-                    except:
-                        self.logger.exception(f'Ошибка при обработке: {article_url}')
-                        self.logger.info('Закрытие вкладки и переход к след. материалу...')
-                        self.driver.close()
-                        self.driver.switch_to.window(self.driver.window_handles[0])
-                        continue
+                        self.find_document(document)
 
                     self.driver.close()
                     self.driver.switch_to.window(self.driver.window_handles[0])
@@ -237,12 +241,8 @@ class FINEXTRA:
             if current_date < end_date:
                 self.logger.info('Текущая дата меньше окончательной даты. Прерывание парсинга.')
                 break
-        # Логирование найденного документа
-        # self.logger.info(self._find_document_text_for_logger(document))
-
         # ---
         # ========================================
-        ...
 
     @staticmethod
     def _find_document_text_for_logger(doc: SPP_document):
@@ -255,52 +255,15 @@ class FINEXTRA:
         """
         return f"Find document | name: {doc.title} | link to web: {doc.web_link} | publication date: {doc.pub_date}"
 
-    @staticmethod
-    def some_necessary_method():
+    def find_document(self, _doc: SPP_document):
         """
-        Если для парсинга нужен какой-то метод, то его нужно писать в классе.
-
-        Например: конвертация дат и времени, конвертация версий документов и т. д.
-        :return:
-        :rtype:
+        Метод для обработки найденного документа источника
         """
-        ...
+        if self._last_document and self._last_document.hash == _doc.hash:
+            raise Exception(f"Find already existing document ({self._last_document})")
 
-    @staticmethod
-    def nasty_download(driver, path: str, url: str) -> str:
-        """
-        Метод для "противных" источников. Для разных источника он может отличаться.
-        Но основной его задачей является:
-            доведение driver селениума до файла непосредственно.
+        if self._max_count_documents and len(self._content_document) >= self._max_count_documents:
+            raise Exception(f"Max count articles reached ({self._max_count_documents})")
 
-            Например: пройти куки, ввод форм и т. п.
-
-        Метод скачивает документ по пути, указанному в driver, и возвращает имя файла, который был сохранен
-        :param driver: WebInstallDriver, должен быть с настроенным местом скачивания
-        :_type driver: WebInstallDriver
-        :param url:
-        :_type url:
-        :return:
-        :rtype:
-        """
-
-        with driver:
-            driver.set_page_load_timeout(40)
-            driver.get(url=url)
-            time.sleep(1)
-
-            # ========================================
-            # Тут должен находится блок кода, отвечающий за конкретный источник
-            # -
-            # ---
-            # ========================================
-
-            # Ожидание полной загрузки файла
-            while not os.path.exists(path + '/' + url.split('/')[-1]):
-                time.sleep(1)
-
-            if os.path.isfile(path + '/' + url.split('/')[-1]):
-                # filename
-                return url.split('/')[-1]
-            else:
-                return ""
+        self._content_document.append(_doc)
+        self.logger.info(self._find_document_text_for_logger(_doc))
