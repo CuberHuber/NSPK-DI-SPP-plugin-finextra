@@ -38,7 +38,7 @@ class FINEXTRA:
     HOST = "https://www.finextra.com"
     _content_document: list[SPP_document]
 
-    def __init__(self, driver, interval: timedelta, max_count_documents: int = None, last_document: SPP_document = None, *args, **kwargs):
+    def __init__(self, driver, max_count_documents: int = None, last_document: SPP_document = None, *args, **kwargs):
         """
         Конструктор класса парсера
 
@@ -49,7 +49,6 @@ class FINEXTRA:
         self._content_document = []
 
         self.driver = driver
-        self.interval = interval
         self._max_count_documents = max_count_documents
         self._last_document = last_document
 
@@ -88,10 +87,10 @@ class FINEXTRA:
         # Тут должен находится блок кода, отвечающий за парсинг конкретного источника
         # -
         current_date = datetime(year=datetime.now().year, month=datetime.now().month, day=datetime.now().day)
-        end_date = current_date - self.interval
+        # end_date = current_date - self.interval
         self.logger.info(f"Текущая дата: {datetime.strftime(current_date, '%Y-%m-%d')}")
-        self.logger.info(
-            f"Окончательная дата: {datetime.strftime(end_date, '%Y-%m-%d')} (разница в днях: {self.interval})")
+        # self.logger.info(
+        #     f"Окончательная дата: {datetime.strftime(end_date, '%Y-%m-%d')} (разница в днях: {self.interval})")
 
         while True:
             page_link = f"https://www.finextra.com/latest-news?date={datetime.strftime(current_date, '%Y-%m-%d')}"
@@ -191,7 +190,6 @@ class FINEXTRA:
                         comment_count = self.driver.find_element(By.ID, 'comment').find_element(By.XPATH,
                                                                                                 './following-sibling::h4').text.split()[
                             1].split('(', 1)[1].split(')')[0]
-
                     except:
                         self.logger.exception(f'Ошибка при обработке: {article_url}')
                         self.logger.info('Закрытие вкладки и переход к след. материалу...')
@@ -238,9 +236,9 @@ class FINEXTRA:
             current_date = current_date - timedelta(1)
             self.logger.info(f"Изменение даты на новую: {datetime.strftime(current_date, '%Y-%m-%d')}")
 
-            if current_date < end_date:
-                self.logger.info('Текущая дата меньше окончательной даты. Прерывание парсинга.')
-                break
+            # if current_date < end_date:
+            #     self.logger.info('Текущая дата меньше окончательной даты. Прерывание парсинга.')
+            #     break
         # ---
         # ========================================
 

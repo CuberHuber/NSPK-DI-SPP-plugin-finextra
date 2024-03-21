@@ -26,7 +26,7 @@ driver = webdriver.Chrome(options)
 
 doc = SPP_document(id=None, title='Shift4 Payments unimpressed by suitor bids', abstract="Shift4 Payments' CEO is Jared Isaacman is said to be distinctly unimpressed by the valuations placed on the firm from potential acquirers.", text=None, web_link='https://www.finextra.com/newsarticle/43865/shift4-payments-unimpressed-by-suitor-bids', local_link=None, other_data={'article_type': 'newsarticle', 'related_comp': 'Shift4 Payments, Shift4 Payments', 'lead_ch': 'Payments, Payments', 'channels': 'Retail banking, Retail banking', 'keywords': 'Mergers and acquisitions, Mergers and acquisitions', 'category_name': 'Editorial', 'category_desc': 'This content has been selected, created and edited by the Finextra editorial team based upon its relevance and interest to our community.', 'tw_count': '', 'li_count': '', 'fb_count': '', 'comment_count': '0'}, pub_date=datetime(2024, 3, 18, 15, 7, 15, 895695), load_date=None)
 
-parser = FINEXTRA(driver, timedelta(1), 10, doc)
+parser = FINEXTRA(driver, 10, doc)
 docs = parser.content()
 
 print(len(docs))
